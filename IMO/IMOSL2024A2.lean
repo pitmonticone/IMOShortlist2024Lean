@@ -3,7 +3,11 @@ Copyright (c) 2024 Joseph Myers. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Joseph Myers
 -/
-import Mathlib
+import Mathlib.Algebra.BigOperators.Intervals
+import Mathlib.Algebra.Order.Ring.Star
+import Mathlib.Analysis.Normed.Ring.Lemmas
+import Mathlib.Data.Int.Star
+import Mathlib.Data.Nat.Log
 
 namespace IMOSL2024A2
 
@@ -240,5 +244,3 @@ theorem result (n : ℕ) : (∀ x : Fin (n + 1) → ℕ, ∑ i, x i = n → answ
   rfl
 
 end IMOSL2024A2
-
-#min_imports
