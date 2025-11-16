@@ -13,8 +13,7 @@ def xmap (n : ℕ) : ℕ ↪ ℕ where
   toFun := fun m ↦ 2 ^ n * (2 * m + 1)
   inj' := fun x y h ↦ by
     dsimp only at h
-    rw [Nat.mul_right_inj (by simp), add_left_inj, Nat.mul_right_inj (by simp)] at h
-    exact h
+    rwa [Nat.mul_right_inj (by simp), add_left_inj, Nat.mul_right_inj (by simp)] at h
 
 def x_to_finset {n : ℕ} (x : Fin (n + 1) → ℕ) : Finset ℕ :=
   Finset.univ.biUnion fun i ↦ (Finset.range (x i)).map (xmap i)
@@ -32,8 +31,7 @@ lemma disjoint_xmap {n : ℕ} (x : Fin (n + 1) → ℕ)
         by_cases h_cases : i.val < j.val
         · have h_div : 2 ^ (j.val - i.val) * (2 * k + 1) = 2 * m + 1 := by
             refine mul_left_cancel₀ (pow_ne_zero i two_ne_zero) ?_
-            rw [← mul_assoc, ← pow_add, Nat.add_sub_of_le h_cases.le]
-            exact h_eq.symm
+            rw [← mul_assoc, ← pow_add, Nat.add_sub_of_le h_cases.le, h_eq]
           replace h_div := congr_arg Even h_div
           simp_all only [Finset.mem_coe, ne_eq, Fin.val_fin_lt, Nat.even_mul, Nat.even_pow,
             even_two, true_and, Nat.not_even_bit1, or_false, eq_iff_iff, iff_false,
@@ -145,22 +143,16 @@ lemma le_sum_two_pow_mul_sq {n : ℕ} (x : Fin (n + 1) → ℕ) :
       apply Nat.div_le_of_le_mul
       nlinarith [hm_ge, ih S' hS' h_pos', Nat.div_mul_cancel (show 2 ∣ k * (k + 1)
         from even_iff_two_dvd.mp <| by simp [mul_add, parity_simps])]
-  apply h_min_sum
-  · rfl
-  · refine fun i hi ↦ Nat.pos_of_ne_zero ?_
-    simp_all only [ge_iff_le, ne_eq]
-    refine Aesop.BuiltinRules.not_intro fun a ↦ ?_
-    subst a
-    exact absurd hi (zero_not_mem_x_to_finset x)
+  refine h_min_sum _ _ rfl fun i hi ↦ Nat.pos_of_ne_zero ?_
+  exact Aesop.BuiltinRules.not_intro fun hi0 ↦ absurd (hi0 ▸ hi) (zero_not_mem_x_to_finset x)
 
 def optimal_x (n : ℕ) (i : Fin (n + 1)) : ℕ := (n + 2 ^ (i : ℕ)) / 2 ^ ((i : ℕ) + 1)
 
 lemma optimal_x_to_finset {n : ℕ} : x_to_finset (optimal_x n) = Finset.Icc 1 n := by
   ext a
   rw [Finset.mem_Icc]
-  have this := zero_not_mem_x_to_finset (optimal_x n)
-  refine ⟨fun ha ↦ ⟨Nat.pos_of_ne_zero fun h ↦ ?_, ?_⟩, ?_⟩
-  · simp_all only
+  have := zero_not_mem_x_to_finset (optimal_x n)
+  refine ⟨fun ha ↦ ⟨by grind, ?_⟩, fun ha ↦ ?_⟩
   · obtain ⟨i, m, hm⟩ : ∃ i m, a = 2^i * (2*m + 1) ∧ m < (n + 2^i) / 2^(i+1) := by
       simp only [x_to_finset, Finset.mem_biUnion, Finset.mem_univ, Finset.mem_map, Finset.mem_range,
         true_and] at ha
@@ -168,11 +160,10 @@ lemma optimal_x_to_finset {n : ℕ} : x_to_finset (optimal_x n) = Finset.Icc 1 n
     rw [Nat.lt_iff_add_one_le, Nat.le_div_iff_mul_le] at hm <;> ring_nf at *
       <;> norm_num [pow_succ']
     nlinarith [Nat.zero_le m]
-  · intro a_1
-    obtain ⟨left, right⟩ := a_1
+  · obtain ⟨left, right⟩ := ha
     obtain ⟨i, m, hi⟩ : ∃ i m : ℕ, a = 2 ^ i * (2 * m + 1) := by
       induction' a using Nat.strongRecOn with a ih;
-      rcases Nat.even_or_odd' a with ⟨ k, rfl | rfl ⟩
+      rcases Nat.even_or_odd' a with ⟨k, rfl | rfl⟩
       · exact Exists.elim (ih k (by linarith) (by linarith) (by linarith))
           fun i hi ↦ hi.elim fun m hm ↦ ⟨i + 1, m, by rw [hm]; ring⟩
       · exact ⟨0, k, by ring⟩
@@ -181,65 +172,50 @@ lemma optimal_x_to_finset {n : ℕ} : x_to_finset (optimal_x n) = Finset.Icc 1 n
         <;> nlinarith [pow_pos (zero_lt_two' ℕ ) i]
     simp_all only [x_to_finset, Finset.mem_biUnion, Finset.mem_univ, Finset.mem_map,
       Finset.mem_range, true_and]
-    refine ⟨ ⟨ i, ?_ ⟩, m, hm, ?_ ⟩ <;> norm_num [xmap]
     have h_log : i ≤ Nat.log 2 n := Nat.le_log_of_pow_le (by norm_num) (by nlinarith)
-    exact Nat.lt_succ_of_le (h_log.trans (Nat.log_le_self _ _ ))
-
-
-  -- · refine Nat.pos_of_ne_zero fun h ↦ ?_
-  --   have := zero_not_mem_x_to_finset (optimal_x n)
-  --   aesop
-  -- · obtain ⟨i, m, hm⟩ : ∃ i m, a = 2^i * (2*m + 1) ∧ m < (n + 2^i) / 2^(i+1) := by
-  --     simp only [x_to_finset, Finset.mem_biUnion, Finset.mem_univ, Finset.mem_map, Finset.mem_range,
-  --       true_and] at a_1
-  --     aesop
-  --   rw [Nat.lt_iff_add_one_le, Nat.le_div_iff_mul_le] at hm <;> ring_nf at *
-  --     <;> norm_num [pow_succ']
-  --   nlinarith [Nat.zero_le m]
-  -- · obtain ⟨i, m, hi⟩ : ∃ i m : ℕ, a = 2 ^ i * (2 * m + 1) := by
-  --     induction' a using Nat.strongRecOn with a ih;
-  --     rcases Nat.even_or_odd' a with ⟨ k, rfl | rfl ⟩
-  --     · exact Exists.elim (ih k (by linarith) (by linarith) (by linarith))
-  --         fun i hi ↦ hi.elim fun m hm ↦ ⟨i + 1, m, by rw [hm]; ring⟩
-  --     · exact ⟨0, k, by ring⟩
-  --   have hm : m < (n + 2 ^ i) / 2 ^ (i + 1) := by
-  --     rw [Nat.lt_iff_add_one_le, Nat.le_div_iff_mul_le] <;> ring_nf
-  --       <;> nlinarith [pow_pos (zero_lt_two' ℕ ) i]
-  --   simp_all only [x_to_finset, Finset.mem_biUnion, Finset.mem_univ, Finset.mem_map,
-  --     Finset.mem_range, true_and]
-  --   refine ⟨ ⟨ i, ?_ ⟩, m, hm, ?_ ⟩ <;> norm_num [xmap]
-  --   have h_log : i ≤ Nat.log 2 n := Nat.le_log_of_pow_le (by norm_num) (by nlinarith)
-  --   exact Nat.lt_succ_of_le (h_log.trans (Nat.log_le_self _ _ ))
+    exact ⟨⟨i, Nat.lt_succ_of_le (h_log.trans (Nat.log_le_self _ _ ))⟩, m, hm, by norm_num [xmap]⟩
 
 lemma sum_optimal_x (n : ℕ) : ∑ i, optimal_x n i = n := by
   have h_sum : ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = n := by
-    have h_sum : ∀ n : ℕ, ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = n := by
-      intro n;
-      have h_sum_floor : ∀ (n : ℕ), ∑ i ∈ Finset.range (Nat.log 2 n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = n := by
-        intro n;
-        induction' n using Nat.strong_induction_on with n ih;
-        have h_split : ∑ i ∈ Finset.range (Nat.log 2 n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = (n + 1) / 2 + ∑ i ∈ Finset.range (Nat.log 2 n), (n / 2 + 2 ^ i) / 2 ^ (i + 1) := by
-          rw [ Finset.sum_range_succ' ] ; norm_num [ Nat.pow_succ', ← Nat.div_div_eq_div_mul ] ;
-          norm_num [ add_comm, Nat.add_mul_div_left, Nat.div_div_eq_div_mul ];
-        rcases n with ( _ | _ | n ) <;> simp_all +decide;
-        have := ih ( ( n + 1 + 1 ) / 2 ) ( Nat.div_lt_of_lt_mul <| by linarith ) ; aesop;
-        rcases k : Nat.log 2 ( n + 1 + 1 ) with ( _ | k ) <;> simp_all +arith +decide [ Nat.pow_succ', Nat.div_div_eq_div_mul ];
-        omega;
-      have h_zero_terms : ∀ i ∈ Finset.Ico (Nat.log 2 n + 1) (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = 0 := by
-        simp +zetaDelta at *;
-        exact fun i hi₁ hi₂ ↦ by rw [ pow_succ' ] ; linarith [ Nat.lt_pow_of_log_lt one_lt_two hi₁ ] ;
-      rw [ ← Finset.sum_range_add_sum_Ico _ ( by linarith [ Nat.log_le_self 2 n ] : Nat.log 2 n + 1 ≤ n + 1 ), Finset.sum_congr rfl h_zero_terms ] ; aesop;
-    exact h_sum n;
-  have h_sum_fin : ∑ i : Fin (n + 1), (n + 2 ^ (i : ℕ)) / 2 ^ ((i : ℕ) + 1) = ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) := by
-    have h_sum_fin : ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = ∑ i ∈ Finset.image (fun i : Fin (n + 1) ↦ i.val) Finset.univ, (n + 2 ^ i) / 2 ^ (i + 1) := by
+    have h_sum_floor :
+        ∀ n, ∑ i ∈ Finset.range (Nat.log 2 n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = n := by
+      intro n
+      induction' n using Nat.strong_induction_on with n ih
+      have h_split :
+        ∑ i ∈ Finset.range (Nat.log 2 n + 1), (n + 2 ^ i) / 2 ^ (i + 1)
+          = (n + 1) / 2 + ∑ i ∈ Finset.range (Nat.log 2 n), (n / 2 + 2 ^ i) / 2 ^ (i + 1) := by
+        rw [ Finset.sum_range_succ' ] ; norm_num [ Nat.pow_succ', ← Nat.div_div_eq_div_mul ] ;
+        norm_num [ add_comm, Nat.add_mul_div_left, Nat.div_div_eq_div_mul ];
+      rcases n with (_ | _ | n) <;> simp_all +decide;
+      have := ih ((n + 1 + 1) / 2) (Nat.div_lt_of_lt_mul <| by linarith)
+      rw [Nat.log_div_base] at this
+      rcases k : Nat.log 2 (n + 1 + 1) with (_ | k) <;> simp_all +arith
+      omega
+    have h_zero_terms :
+        ∀ i ∈ Finset.Ico (Nat.log 2 n + 1) (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) = 0 := by
+      simp only [Finset.mem_Ico, Nat.div_eq_zero_iff, Nat.pow_eq_zero,
+        OfNat.ofNat_ne_zero, ne_eq, Nat.add_eq_zero, one_ne_zero, and_false, not_false_eq_true,
+        and_true, false_or, and_imp]
+      intro i hi₁ hi₂
+      rw [pow_succ']
+      linarith [Nat.lt_pow_of_log_lt one_lt_two hi₁]
+    have : Nat.log 2 n + 1 ≤ n + 1 := by linarith [Nat.log_le_self 2 n]
+    rw [← Finset.sum_range_add_sum_Ico _ this, Finset.sum_congr rfl h_zero_terms]
+    aesop
+  have h_sum_fin :
+      ∑ i : Fin (n + 1), (n + 2 ^ (i : ℕ)) / 2 ^ ((i : ℕ) + 1)
+        = ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1) := by
+    have h_sum_fin :
+        ∑ i ∈ Finset.range (n + 1), (n + 2 ^ i) / 2 ^ (i + 1)
+          = ∑ i ∈ Finset.image (fun i : Fin (n + 1) ↦ i.val) .univ, (n + 2 ^ i) / 2 ^ (i + 1) := by
       rw [Finset.range_eq_Ico]
       congr
       ext i
-      simp_all only [Nat.Ico_zero_eq_range, Finset.mem_range, Finset.mem_image, Finset.mem_univ, true_and]
-      aesop
-      exact ⟨ ⟨ i, a ⟩, rfl ⟩;
+      simp_all only [Nat.Ico_zero_eq_range, Finset.mem_range, Finset.mem_image, Finset.mem_univ,
+        true_and]
+      exact ⟨fun a ↦ ⟨⟨i, a⟩, rfl⟩, fun ⟨w, h⟩ ↦ h ▸ w.isLt⟩
     rw [h_sum_fin, Finset.sum_image]
-    aesop
+    exact fun a ha b hb hab ↦ Fin.eq_of_val_eq hab
   exact h_sum_fin.trans h_sum
 
 lemma sum_two_pow_mul_sq_optimal_x (n : ℕ) :
